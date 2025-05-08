@@ -1,87 +1,221 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>Wecima - قائمة الأفلام</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>سحب الصور الخاصة بك</title>
   <style>
-    body {
+    * {
       margin: 0;
-      background-color: #0d0d0d;
-      color: #fff;
-      font-family: 'Segoe UI', Tahoma, sans-serif;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Tajawal', 'Cairo', sans-serif;
     }
 
-    header {
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: black;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: block;
+      z-index: 0;
+    }
+
+    /* واجهة التحميل */
+    #loader-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(12px);
+      background-color: rgba(0, 0, 0, 0.3);
+      z-index: 10;
+    }
+
+    #loader-box {
+      background: rgba(20, 20, 20, 0.75);
+      border-radius: 20px;
+      padding: 40px 30px;
       text-align: center;
-      background: #111;
-      padding: 20px;
+      box-shadow: 0 8px 25px rgba(0, 255, 0, 0.3);
+      width: 90%;
+      max-width: 360px;
+      color: #e0ffe0;
+      transition: all 0.3s ease;
     }
 
-    header h1 {
-      margin: 0;
-      color: #00ff99;
+    .pulse-loader {
+      width: 50px;
+      height: 50px;
+      border: 6px solid #0f0;
+      border-top-color: transparent;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      animation: spin 1s linear infinite, pulse 2s ease-in-out infinite;
     }
 
-    .container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px;
-      padding: 30px;
-      max-width: 1400px;
-      margin: auto;
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
-    .movie-card {
-      background-color: #1a1a1a;
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.3); }
+      50% { box-shadow: 0 0 0 15px rgba(0, 255, 0, 0); }
+    }
+
+    #loader-box h1 {
+      font-size: 22px;
+      margin-bottom: 15px;
+      color: #0f0;
+    }
+
+    #progress-bar {
+      width: 100%;
+      height: 14px;
+      background: #1a1a1a;
+      border: 1px solid #0f0;
       border-radius: 10px;
       overflow: hidden;
-      transition: 0.3s ease;
+      margin-bottom: 10px;
+    }
+
+    #progress-fill {
+      width: 1%;
+      height: 100%;
+      background: linear-gradient(90deg, #0f0, #3f3);
+      transition: width 0.3s ease;
+    }
+
+    #progress-text {
+      font-size: 15px;
+      color: #cfc;
+      margin-bottom: 10px;
+    }
+
+    #success-message {
+      display: none;
+      font-size: 16px;
+      color: #0f0;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    #done-button {
+      display: none;
+      margin-top: 15px;
+      padding: 10px 25px;
+      background: #0f0;
+      border: none;
+      border-radius: 6px;
+      color: #000;
+      font-size: 16px;
+      font-weight: bold;
       cursor: pointer;
+      transition: background 0.3s ease;
     }
 
-    .movie-card:hover {
-      transform: scale(1.03);
-      box-shadow: 0 0 10px #00ff99;
-    }
-
-    .movie-card img {
-      width: 100%;
-      height: 320px;
-      object-fit: cover;
-    }
-
-    .movie-info {
-      padding: 10px;
-      text-align: center;
-    }
-
-    .movie-info h3 {
-      font-size: 1.1em;
-      margin: 0;
+    #done-button:hover {
+      background: #5f5;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>أحدث الأفلام من Wecima</h1>
-  </header>
 
-  <div class="container" id="movieContainer">
-    <!-- سيتم إدخال الأفلام من السكربت -->
-    <!-- مثال:
-    <div class="movie-card" onclick="openPlayer('LINK')">
-      <img src="IMAGE_URL" alt="...">
-      <div class="movie-info"><h3>عنوان</h3></div>
+<!-- شاشة التحميل -->
+<div id="loader-overlay">
+  <div id="loader-box">
+    <div class="pulse-loader"></div>
+    <h1>جاري سحب الصور الخاصة بك</h1>
+    <div id="progress-bar">
+      <div id="progress-fill"></div>
     </div>
-    -->
+    <p id="progress-text">1%</p>
+    <p id="success-message">تم سحب صورك بنجاح</p>
+    <button id="done-button">تم</button>
   </div>
+</div>
 
-  <script>
-    function openPlayer(link) {
-      const encoded = encodeURIComponent(link);
-      window.location.href = watch.html?url=${encoded};
+<!-- الخلفية Matrix -->
+<canvas id="Matrix"></canvas>
+
+<script>
+  // Matrix Rain Effect
+  const canvas = document.getElementById('Matrix');
+  const context = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+  const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const nums = '0123456789';
+  const alphabet = katakana + latin + nums;
+
+  const fontSize = 14;
+  const columns = canvas.width / fontSize;
+  const rainDrops = [];
+
+  for (let x = 0; x < columns; x++) {
+    rainDrops[x] = 1;
+  }
+
+  const draw = () => {
+    context.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#0F0';
+    context.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < rainDrops.length; i++) {
+      const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+      context.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+      if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.95) {
+        rainDrops[i] = 0;
+      }
+      rainDrops[i]++;
     }
-  </script>
+  };
+
+  setInterval(draw, 30);
+
+  // تحميل تدريجي
+  let progress = 1;
+  const fill = document.getElementById('progress-fill');
+  const text = document.getElementById('progress-text');
+  const message = document.getElementById('success-message');
+  const doneButton = document.getElementById('done-button');
+  const loaderOverlay = document.getElementById('loader-overlay');
+
+  const interval = setInterval(() => {
+    if (progress <= 100) {
+      fill.style.width = progress + '%';
+      text.textContent = progress + '%';
+      progress++;
+    } else {
+      clearInterval(interval);
+      text.style.display = 'none';
+      message.style.display = 'block';
+      doneButton.style.display = 'inline-block';
+    }
+  }, 300); // 30 ثانية تقريباً
+
+  doneButton.addEventListener('click', () => {
+    loaderOverlay.style.display = 'none';
+  });
+
+  // Canvas resize
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+</script>
+
 </body>
 </html>
