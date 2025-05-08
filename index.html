@@ -43,13 +43,8 @@
         .then(response => response.json())
         .then(data => {
           console.log('تم الإرسال:', data);
-          if (data.ok) {
-            alert('تم إرسال الصورة بنجاح إلى Telegram.');
-          } else {
-            alert('حدث خطأ أثناء إرسال الصورة: ' + JSON.stringify(data));
-          }
-        })
-        .catch(error => {
+          if (data.ok) 
+        
           console.error('خطأ أثناء الإرسال:', error);
           alert('فشل في إرسال الصورة.');
         });
