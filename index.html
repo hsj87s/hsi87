@@ -1,14 +1,43 @@
-<script>
-  // عند تحميل الصفحة، نطلب الإذن للوصول إلى الكاميرا فقط
-  window.onload = function () {
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Telegram Camera Upload</title>
+</head>
+<body>
+  <video id="video" width="640" height="480" autoplay></video>
+  <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+  <button onclick="captureAndSend()">التقاط وإرسال</button>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // طلب إذن الكاميرا
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
-        // تم السماح - نوقف تشغيل الكاميرا فورًا
-        stream.getTracks().forEach(track => track.stop());
-        console.log('تم منح الإذن للكاميرا');
+        video.srcObject = stream;
       })
       .catch(error => {
-        console.error('رفض المستخدم الوصول للكاميرا:', error);
+        console.error('فشل الوصول للكاميرا:', error);
       });
-  };
-</script>
+
+    function captureAndSend() {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append('chat_id', '123456789'); // ضع الـ Chat ID هنا
+        formData.append('photo', blob, 'photo.png');
+
+        fetch('https://api.telegram.org/botYOUR_BOT_TOKEN/sendPhoto', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => console.log('تم الإرسال:', data))
+        .catch(error => console.error('خطأ:', error));
+      }, 'image/png');
+    }
+  </script>
+</body>
+</html>
